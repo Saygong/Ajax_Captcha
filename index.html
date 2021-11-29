@@ -1,0 +1,88 @@
+<html lang="en">
+
+    <head>
+        <title>Introduzione a AJAX</title>
+        <script src="jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+        <script>
+
+            function getCaptcha(){
+                return $.ajax({
+                    type: 'GET',
+                    dataType: "json",
+                    url : "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getIdentifier",
+                    success : function (data) {
+
+                        $.ajax({
+                            type: 'GET',
+                            dataType: "json",
+                            url: "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getImage&id=" + data.id,
+                            success: function (img) {
+                                let path = "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/" + img.url;
+                                $("#captcha").attr("src", path);
+                                return data.id;
+                            },
+                            error: function (img) {
+                                alert("fine" + img);
+                                return undefined;
+                            }
+                        })
+
+                    },
+                    error : function (data) {
+                        alert("fine - " + data);
+                        return undefined;
+                    }
+                });
+
+            }
+
+            function checking(user_input, sessionId){
+
+                return $.ajax({
+                    type: 'GET',
+                    dataType: "json",
+                    url: "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&sendCode&id=" + sessionId + "&code=" + user_input,
+                    success: function (data) {
+                        console.log("successo" + data);
+                    },
+                    error: function (data) {
+                        console.log("Fallimento" + JSON.stringify(data));
+                    }
+                })
+
+            }
+
+            async function mainFunc() {
+
+                let sessionId = await getCaptcha();
+                console.log(sessionId);
+
+                $("#ok").click( async function(){
+                    let user_input = $("#captcha_code").val();
+                    if(user_input !== "")
+                        await checking( user_input , sessionId );
+                    else $(document.body).append("<p> Inserire un valore! </p>");
+                });
+
+            }
+
+            $(document).ready(mainFunc());
+
+        </script>
+        <style>
+            img {
+                width: 215px;
+                height: 80px;
+            }
+        </style>
+
+    </head>
+<body>
+    
+    <!--Il corpo della pagina HTML non deve essere modificato -->
+    <img id='captcha' /><br/>
+    <input type='text' id='captcha_code'/>
+    <button id="ok">OK</button>
+	   
+</body>
