@@ -5,67 +5,95 @@
         <script src="jquery.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
         <script>
+            error = false;
+
+            function addError(text){
+                if (!error) {
+                    error = true;
+                    $(document.body).append("<div id='error'>" + text + "</div>");
+                }
+                else {
+                    $('#error').remove();
+                    $(document.body).append("<div id='error'>" + text + "</div>");
+                }
+            }
+
 
             function getCaptcha(){
+
                 return $.ajax({
-                    type: 'GET',
-                    dataType: "json",
-                    url : "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getIdentifier",
-                    success : function (data) {
-
-                        $.ajax({
-                            type: 'GET',
-                            dataType: "json",
-                            url: "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getImage&id=" + data.id,
-                            success: function (img) {
-                                let path = "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/" + img.url;
-                                $("#captcha").attr("src", path);
-                                return data.id;
-                            },
-                            error: function (img) {
-                                alert("fine" + img);
-                                return undefined;
-                            }
-                        })
-
-                    },
-                    error : function (data) {
-                        alert("fine - " + data);
-                        return undefined;
-                    }
+                    type:'GET',
+                    url: 'http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getIdentifier',
+                    dataType: 'json',
+                }).then( function(data){
+                    return $.ajax({
+                        type:'GET',
+                        url: 'http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getImage&id=' + data.id,
+                        dataType: 'json',
+                    });
+                }).done(function(img){
+                    let path = "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/" + img.url;
+                    $("#captcha").attr("src", path);
+                    return img.id;
+                }).fail(function(err){
+                    console.log(err);
+                    addError("Errore di connessione!");
                 });
+            }
+
+            function authenticated(){
+                addError("autenticato");
+
 
             }
 
             function checking(user_input, sessionId){
-
                 return $.ajax({
                     type: 'GET',
-                    dataType: "json",
+                    dataType: "jsonp",
                     url: "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&sendCode&id=" + sessionId + "&code=" + user_input,
                     success: function (data) {
-                        console.log("successo" + data);
+                        let resp = data.auth;
+                        return resp === "true";
                     },
-                    error: function (data) {
-                        console.log("Fallimento" + JSON.stringify(data));
+                    error: function () {
+                        console.log(err);
                     }
                 })
 
             }
 
-            async function mainFunc() {
+             function mainFunc() {
 
-                let sessionId = await getCaptcha();
-                console.log(sessionId);
 
-                $("#ok").click( async function(){
-                    let user_input = $("#captcha_code").val();
-                    if(user_input !== "")
-                        await checking( user_input , sessionId );
-                    else $(document.body).append("<p> Inserire un valore! </p>");
-                });
+                 let sessionId;
+                 getCaptcha().done( function (data){
 
-            }
+                     sessionId = data.id;
+
+                     $("#ok").click(function () {
+
+                         let user_input = $("#captcha_code").val();
+
+                         if (user_input !== "") {
+                             checking(user_input, sessionId).done( function (data){
+
+                                 if (data.auth) {
+                                     authenticated();
+                                 }
+                                 else {
+                                     addError("Codice errato!");
+                                 }
+                             })
+                         } else addError("Inserire un valore");
+                     });
+
+                 });
+
+
+             }
+
+
 
             $(document).ready(mainFunc());
 
