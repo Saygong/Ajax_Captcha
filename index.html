@@ -3,7 +3,6 @@
     <head>
         <title>Introduzione a AJAX</title>
         <script src="jquery.min.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
         <script>
             error = false;
 
@@ -19,81 +18,103 @@
             }
 
 
-            function getCaptcha(){
+
+            function getSession(){
 
                 return $.ajax({
                     type:'GET',
                     url: 'http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getIdentifier',
                     dataType: 'json',
-                }).then( function(data){
+                }).done( function(data){
+
                     return $.ajax({
                         type:'GET',
                         url: 'http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&getImage&id=' + data.id,
                         dataType: 'json',
+                    }).done( function(img){
+
+                        let path = "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/" + img.url;
+                        $("#captcha").attr("src", path);
+                        return img.id;
+
+                    }).fail(function(error){
+                        addError("Errore: " + JSON.stringify(error));
                     });
-                }).done(function(img){
-                    let path = "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/" + img.url;
-                    $("#captcha").attr("src", path);
-                    return img.id;
-                }).fail(function(err){
-                    console.log(err);
-                    addError("Errore di connessione!");
+
+                }).fail(function(error){
+                    addError("Errore: " + JSON.stringify(error));
                 });
+
             }
+
 
             function authenticated(){
-                addError("autenticato");
+                $(document.body).empty();
 
+                $(document.body).append("<div id='auth'></div>");
+                $("#auth").css({
+                    "width": "50%",
+                    "margin": "0 auto",
+                    "text-align": "center",
+                    "border": "1px solid gray",
+                    "margin-top": "10%"
+                });
 
+                $("#auth").append("<h1 id='auth_text'>Successfully authenticated!</h1>");
+                $("#auth_text").css("text-decoration","underline");
             }
+
 
             function checking(user_input, sessionId){
                 return $.ajax({
                     type: 'GET',
-                    dataType: "jsonp",
+                    dataType: "json",
                     url: "http://www.dais.unive.it/~cosmo/teaching/esercitazione3/captcha.php?callback=?&sendCode&id=" + sessionId + "&code=" + user_input,
-                    success: function (data) {
-                        let resp = data.auth;
-                        return resp === "true";
-                    },
-                    error: function () {
-                        console.log(err);
-                    }
-                })
+                }).done(function (data) {
+                    return data.auth;
+
+                }).fail(function(error){
+                    addError("Errore: " + JSON.stringify(error));
+                });
 
             }
 
              function mainFunc() {
 
+                 getSession().done( function (data) {
+                     let sessionId = data.id;
 
-                 let sessionId;
-                 getCaptcha().done( function (data){
-
-                     sessionId = data.id;
+                     let buttonclick = $.Deferred();
 
                      $("#ok").click(function () {
 
+                         buttonclick.resolve();
+
                          let user_input = $("#captcha_code").val();
-
                          if (user_input !== "") {
-                             checking(user_input, sessionId).done( function (data){
 
+                             checking(user_input, sessionId).done(function (data) {
                                  if (data.auth) {
                                      authenticated();
-                                 }
-                                 else {
+                                 } else {
                                      addError("Codice errato!");
+                                     mainFunc();
                                  }
-                             })
-                         } else addError("Inserire un valore");
+                             }).fail(function(error){
+                                 console.log("Errore: " + error);
+
+                             });
+                         } else {
+                             addError("Inserire un valore");
+                             mainFunc()
+                         }
                      });
 
+                 }).fail(function(error){
+                     console.log("Errore: " + error);
                  });
 
-
              }
-
-
 
             $(document).ready(mainFunc());
 
